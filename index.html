@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sustainability Decision Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --teal:       #2a9d8f;
+    --teal-light: #52b69a;
+    --teal-pale:  #d4f1e9;
+    --teal-soft:  #e8f7f4;
+    --mint-bg:    #f0faf7;
+    --red:        #e63946;
+    --amber:      #f4a261;
+    --green:      #52b788;
+    --dark:       #1a2e25;
+    --gray:       #6c757d;
+    --lgray:      #dee2e6;
+    --white:      #ffffff;
+    --card-bg:    #ffffff;
+    --body-bg:    #eef7f4;
+    --text:       #1e3a2f;
+    --subtext:    #5a7a6e;
+    --shadow:     0 2px 16px rgba(42,157,143,0.10);
+    --radius:     16px;
+    --radius-sm:  10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--body-bg);
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #1a3a2e 0%, #2a9d8f 100%);
+    padding: 36px 24px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: -40px;
+    width: 150px; height: 150px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    color: #fff;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    position: relative; z-index: 1;
+  }
+  header p {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.75);
+    font-weight: 300;
+    letter-spacing: 0.3px;
+    position: relative; z-index: 1;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    max-width: 1000px;
+    margin: 28px auto;
+    padding: 0 20px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--subtext);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .card-desc {
+    font-size: 0.82rem;
+    color: var(--gray);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  /* ── FORM INPUTS ── */
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 6px;
+  }
+  .field select {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border: 1.5px solid var(--lgray);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    color: var(--text);
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .field select:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(42,157,143,0.12);
+  }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+  .btn:active { transform: translateY(0); }
+  .btn-calc { background: var(--teal); color: #fff; }
+  .btn-reset { background: var(--red); color: #fff; }
+
+  /* ── RESULTS COLUMN ── */
+  .results-col { display: flex; flex-direction: column; gap: 20px; }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .score-number {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3.8rem;
+    color: var(--dark);
+    line-height: 1;
+  }
+  .score-pct { font-size: 1.6rem; color: var(--subtext); font-weight: 300; }
+  .score-emoji { font-size: 2.4rem; }
+
+  .badge-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .grade-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+  .grade-badge {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: var(--dark);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .progress-wrap {
+    background: var(--lgray);
+    border-radius: 20px;
+    height: 12px;
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 20px;
+    width: 0%;
+    transition: width 0.9s cubic-bezier(.4,0,.2,1);
+  }
+
+  .decision-text {
+    background: var(--teal-soft);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    color: var(--teal);
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .predict-text {
+    font-size: 0.84rem;
+    color: var(--subtext);
+    line-height: 1.5;
+  }
+
+  /* chart */
+  .chart-card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--subtext);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+
+  /* placeholder */
+  .placeholder-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--lgray);
+    font-size: 0.88rem;
+  }
+  .placeholder-state .ph-icon { font-size: 2.4rem; margin-bottom: 8px; }
+
+  /* ── CHAT BUBBLE ── */
+  #chatBubble {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #fff;
+    font-size: 1.5rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(42,157,143,0.45);
+    z-index: 1000;
+    transition: transform .2s, box-shadow .2s;
+    border: none;
+  }
+  #chatBubble:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(42,157,143,0.55); }
+
+  /* ── CHAT PANEL ── */
+  #chatPanel {
+    display: none;
+    position: fixed;
+    bottom: 92px; right: 24px;
+    width: 340px;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    z-index: 999;
+    overflow: hidden;
+    flex-direction: column;
+    max-height: 540px;
+    animation: slideUp .25s ease;
+  }
+  #chatPanel.open { display: flex; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, #1a3a2e, #2a9d8f);
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .chat-header-left { display: flex; align-items: center; gap: 10px; }
+  .chat-avatar {
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+  }
+  .chat-header-name { font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
+  .chat-header-status { font-size: 0.72rem; opacity: 0.8; }
+  .chat-close {
+    background: rgba(255,255,255,0.15);
+    border: none; color: #fff;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .chat-close:hover { background: rgba(255,255,255,0.3); }
+
+  /* Quick buttons */
+  .chat-quick {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--teal-pale);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    background: var(--mint-bg);
+  }
+  .qbtn {
+    padding: 5px 11px;
+    border: 1.5px solid var(--teal);
+    border-radius: 20px;
+    background: #fff;
+    color: var(--teal);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+  }
+  .qbtn:hover { background: var(--teal); color: #fff; }
+
+  /* Messages */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--teal-pale); border-radius: 4px; }
+
+  .msg { display: flex; gap: 8px; align-items: flex-end; }
+  .msg.bot { justify-content: flex-start; }
+  .msg.user { justify-content: flex-end; }
+
+  .msg-av {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--teal-pale);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .msg-bubble {
+    max-width: 82%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+  .msg.bot .msg-bubble {
+    background: var(--teal-soft);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.user .msg-bubble {
+    background: var(--teal);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-bubble ol { padding-left: 16px; margin-top: 6px; }
+  .msg-bubble ol li { margin-bottom: 5px; font-size: 0.8rem; line-height: 1.5; }
+  .msg-bubble .tag {
+    display: inline-block;
+    background: var(--teal);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-right: 5px;
+  }
+  .msg.bot .msg-bubble .tag { background: var(--teal); }
+
+  /* Typing */
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 13px;
+    background: var(--teal-soft);
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+  }
+  .typing-dot {
+    width: 7px; height: 7px;
+    background: var(--teal);
+    border-radius: 50%;
+    animation: typingBounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* Input */
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--teal-pale);
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .chat-input {
+    flex: 1;
+    padding: 9px 13px;
+    border: 1.5px solid var(--lgray);
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.83rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .chat-input:focus { border-color: var(--teal); }
+  .chat-send {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--teal);
+    border: none;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, transform .15s;
+    flex-shrink: 0;
+  }
+  .chat-send:hover { background: #1f7a6e; transform: scale(1.07); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.82rem;
+    color: var(--subtext);
+    font-style: italic;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 760px) {
+    .main-grid { grid-template-columns: 1fr; padding: 0 12px; }
+    #chatPanel { width: calc(100vw - 32px); right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sustainability Decision Engine</h1>
+  <p>Measure your lifestyle. Improve your impact.</p>
+</header>
+
+<div class="main-grid">
+
+  <!-- LEFT: INPUTS -->
+  <div>
+    <div class="card">
+      <div class="card-title">Daily Habit Inputs</div>
+      <div class="card-desc">Select the option that best represents your daily habits.</div>
+
+      <div class="field"><label>Recycling Practices</label>
+        <select id="recycling">
+          <option value="0">Never</option><option value="25">Rarely</option>
+          <option value="50">Sometimes</option><option value="75">Mostly</option>
+          <option value="100">Always</option>
+        </select>
+      </div>
+      <div class="field"><label>Transport Mode</label>
+        <select id="transport">
+          <option value="0">Mostly Car</option><option value="25">Car + Bus</option>
+          <option value="50">Bus + Bike</option><option value="75">Mostly Bike</option>
+          <option value="100">Walk / Cycle</option>
+        </select>
+      </div>
+      <div class="field"><label>Diet Type</label>
+        <select id="diet">
+          <option value="0">Mostly Non-Veg</option><option value="25">Mixed</option>
+          <option value="50">Mostly Veg</option><option value="75">Vegetarian</option>
+          <option value="100">Plant-Based</option>
+        </select>
+      </div>
+      <div class="field"><label>Water Usage (Litres/Day)</label>
+        <select id="water">
+          <option value="0">Very High over 200L</option><option value="25">High 150–200L</option>
+          <option value="50">Moderate 100–150L</option><option value="75">Low 50–100L</option>
+          <option value="100">Very Low under 50L</option>
+        </select>
+      </div>
+      <div class="field"><label>Waste Production (kg/Week)</label>
+        <select id="waste">
+          <option value="0">Very High over 10kg</option><option value="25">High</option>
+          <option value="50">Moderate</option><option value="75">Low</option>
+          <option value="100">Very Low</option>
+        </select>
+      </div>
+      <div class="field"><label>Consumption Behavior</label>
+        <select id="consumption">
+          <option value="0">Very High</option><option value="25">High</option>
+          <option value="50">Moderate</option><option value="75">Low</option>
+          <option value="100">Minimal</option>
+        </select>
+      </div>
+      <div class="field"><label>Community Involvement</label>
+        <select id="community">
+          <option value="0">Never</option><option value="25">Rarely</option>
+          <option value="50">Sometimes</option><option value="75">Mostly</option>
+          <option value="100">Always</option>
+        </select>
+      </div>
+      <div class="field"><label>Green Product Usage</label>
+        <select id="greenProducts">
+          <option value="0">None</option><option value="25">Few</option>
+          <option value="50">Some</option><option value="75">Most</option>
+          <option value="100">All</option>
+        </select>
+      </div>
+      <div class="field"><label>Home Energy Saving</label>
+        <select id="homeEnergy">
+          <option value="0">None</option><option value="25">Few</option>
+          <option value="50">Some</option><option value="75">Most</option>
+          <option value="100">All</option>
+        </select>
+      </div>
+      <div class="field"><label>Eco-Friendly Habits</label>
+        <select id="ecoHabits">
+          <option value="0">None</option><option value="25">Few</option>
+          <option value="50">Some</option><option value="75">Most</option>
+          <option value="100">All</option>
+        </select>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-calc" onclick="calculateScore()">Calculate</button>
+        <button class="btn btn-reset" onclick="resetForm()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: RESULTS + CHART -->
+  <div class="results-col">
+    <div class="card">
+      <div class="card-title">Your Results</div>
+
+      <div class="score-row">
+        <div class="score-number" id="scoreNum">—</div>
+        <div class="score-pct" id="scorePct"></div>
+        <div class="score-emoji" id="scoreEmoji"></div>
+      </div>
+
+      <div class="badge-row" id="badgeRow" style="display:none;">
+        <span class="grade-label" id="gradeLabel"></span>
+        <span class="grade-badge" id="gradeBadge"></span>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="decision-text" id="decisionText" style="display:none;"></div>
+      <div class="predict-text" id="predictText"></div>
+
+      <div id="scorePlaceholder" class="placeholder-state">
+        <div class="ph-icon">📊</div>
+        Fill in your habits and click Calculate
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <h3>Factor Breakdown</h3>
+      <div id="chartPlaceholder" class="placeholder-state">
+        <div class="ph-icon">📈</div>
+        Chart will appear after calculation
+      </div>
+      <div id="chartWrap" style="height:320px;display:none;">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Your choices today shape the planet tomorrow</footer>
+
+<!-- FLOATING BUBBLE -->
+<button id="chatBubble" onclick="toggleChat()" title="Eco Assistant">🌿</button>
+
+<!-- CHAT PANEL -->
+<div id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-header-left">
+      <div class="chat-avatar">🌿</div>
+      <div>
+        <div class="chat-header-name">Eco Assistant</div>
+        <div class="chat-header-status">Ask me anything about your results</div>
+      </div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+
+  <div class="chat-quick">
+    <button class="qbtn" onclick="quickChat('score')">My Score</button>
+    <button class="qbtn" onclick="quickChat('suggestions')">Suggestions</button>
+    <button class="qbtn" onclick="quickChat('priority')">Top 3 Actions</button>
+    <button class="qbtn" onclick="quickChat('decision')">Decision</button>
+    <button class="qbtn" onclick="quickChat('predict')">Prediction</button>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="msg bot">
+      <div class="msg-av">🌿</div>
+      <div class="msg-bubble">
+        Hi! I'm your Eco Assistant 👋<br>
+        Calculate your score, then ask me for your <strong>suggestions list</strong>, <strong>top 3 priority actions</strong>, <strong>decision</strong>, or <strong>prediction</strong>!
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-input-row">
+    <input
+      class="chat-input"
+      id="chatInput"
+      type="text"
+      placeholder="Type your question..."
+      onkeydown="if(event.key==='Enter') sendMessage()"
+    />
+    <button class="chat-send" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────
+const LABELS = [
+  'Recycling Practices','Transport Mode','Diet Type','Water Usage',
+  'Waste Production','Consumption Behavior','Community Involvement',
+  'Green Product Usage','Home Energy Saving','Eco-Friendly Habits'
+];
+
+const SUGGESTIONS = [
+  'Recycling Practices: Start separating waste and recycle regularly',
+  'Transport Mode: Switch to public transport or cycling',
+  'Diet Type: Shift towards a plant-based diet',
+  'Water Usage: Install low-flow taps and take shorter showers',
+  'Waste Production: Reduce single-use plastics and compost food waste',
+  'Consumption Behavior: Buy only what you need, choose sustainable brands',
+  'Community Involvement: Join local environmental groups or initiatives',
+  'Green Product Usage: Replace household items with eco-certified alternatives',
+  'Home Energy Saving: Use LED bulbs and unplug devices when not in use',
+  'Eco-Friendly Habits: Build daily habits like carrying reusable bags and bottles'
+];
+
+const DECISIONS = [
+  'Your weakest area is Recycling Practices. Start separating waste and recycle regularly.',
+  'Your weakest area is Transport Mode. Switch to public transport or cycling.',
+  'Your weakest area is Diet Type. Shift towards a plant-based diet.',
+  'Your weakest area is Water Usage. Install low-flow taps and take shorter showers.',
+  'Your weakest area is Waste Production. Reduce single-use plastics and compost food waste.',
+  'Your weakest area is Consumption Behavior. Buy only what you need, choose sustainable brands.',
+  'Your weakest area is Community Involvement. Join local environmental groups or initiatives.',
+  'Your weakest area is Green Product Usage. Replace household items with eco-certified alternatives.',
+  'Your weakest area is Home Energy Saving. Use LED bulbs and unplug devices when not in use.',
+  'Your weakest area is Eco-Friendly Habits. Build daily habits like carrying reusable bags and bottles.'
+];
+
+let myChart = null;
+let lastScore = 0;
+let lastDecision = '';
+let lastSuggestions = [];
+
+// ── CALCULATE ─────────────────────────────────
+function calculateScore() {
+  const ids = ['recycling','transport','diet','water','waste',
+               'consumption','community','greenProducts','homeEnergy','ecoHabits'];
+  const factors = ids.map(id => parseInt(document.getElementById(id).value) || 0);
+
+  const score = Math.round(factors.reduce((a,b) => a+b, 0) / 10);
+  lastScore = score;
+
+  let emoji, gradeLetter, gradeColor, progressColor, gradeText;
+  if (score <= 40)      { emoji='😟'; gradeLetter='D'; gradeColor='#e63946'; progressColor='#e63946'; gradeText='Critical'; }
+  else if (score <= 59) { emoji='🙂'; gradeLetter='C'; gradeColor='#f4a261'; progressColor='#f4a261'; gradeText='Moderate'; }
+  else if (score <= 79) { emoji='😊'; gradeLetter='B'; gradeColor='#52b788'; progressColor='#52b788'; gradeText='Good'; }
+  else                  { emoji='😃'; gradeLetter='A'; gradeColor='#2a9d8f'; progressColor='#2a9d8f'; gradeText='Excellent'; }
+
+  // update UI
+  document.getElementById('scorePlaceholder').style.display = 'none';
+  document.getElementById('scoreNum').textContent = score;
+  document.getElementById('scorePct').textContent = '%';
+  document.getElementById('scoreEmoji').textContent = emoji;
+
+  document.getElementById('badgeRow').style.display = 'flex';
+  const gl = document.getElementById('gradeLabel');
+  gl.textContent = gradeText;
+  gl.style.background = gradeColor + '22';
+  gl.style.color = gradeColor;
+  document.getElementById('gradeBadge').textContent = gradeLetter;
+
+  const fill = document.getElementById('progressFill');
+  fill.style.background = progressColor;
+  setTimeout(() => { fill.style.width = score + '%'; }, 50);
+
+  // decision
+  const minIdx = factors.indexOf(Math.min(...factors));
+  lastDecision = DECISIONS[minIdx];
+  const dec = document.getElementById('decisionText');
+  dec.textContent = lastDecision;
+  dec.style.display = 'block';
+
+  // prediction
+  const improved = Math.min(score + 20, 100);
+  document.getElementById('predictText').textContent =
+    `If you follow the suggestions, your score can reach ${improved}%.`;
+
+  // build suggestions list
+  const suggestions = [];
+  factors.forEach((val, i) => {
+    if (val <= 50) suggestions.push(SUGGESTIONS[i]);
+  });
+  if (suggestions.length === 0) suggestions.push('Excellent! Keep maintaining your sustainable lifestyle.');
+  lastSuggestions = suggestions;
+
+  renderChart(factors);
+
+  // notify in chat
+  addBotMessage(
+    `✅ Score calculated!<br>Your sustainability score is <strong>${score}%</strong> — Grade <strong>${gradeLetter}</strong> (${gradeText}).<br><br>` +
+    `Ask me for your <em>suggestions list</em> or <em>top 3 priority actions</em> using the buttons above! 🌿`
+  );
+}
+
+// ── CHART ─────────────────────────────────────
+function renderChart(factors) {
+  document.getElementById('chartPlaceholder').style.display = 'none';
+  const wrap = document.getElementById('chartWrap');
+  wrap.style.display = 'block';
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (myChart) myChart.destroy();
+
+  const colors = factors.map(v =>
+    v <= 25 ? '#e63946' : v <= 50 ? '#f4a261' : v <= 75 ? '#52b788' : '#2a9d8f'
+  );
+
+  myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [{ label: 'Score', data: factors, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.x}%` } }
+      },
+      scales: {
+        x: { min: 0, max: 100, ticks: { callback: v => v+'%', color:'#6c757d', font:{family:'DM Sans',size:11} }, grid:{color:'#f0f0f0'} },
+        y: { ticks: { color:'#3d5a50', font:{family:'DM Sans',size:11} }, grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ── RESET ─────────────────────────────────────
+function resetForm() {
+  ['recycling','transport','diet','water','waste','consumption',
+   'community','greenProducts','homeEnergy','ecoHabits']
+   .forEach(id => document.getElementById(id).selectedIndex = 0);
+
+  document.getElementById('scoreNum').textContent = '—';
+  document.getElementById('scorePct').textContent = '';
+  document.getElementById('scoreEmoji').textContent = '';
+  document.getElementById('badgeRow').style.display = 'none';
+  document.getElementById('decisionText').style.display = 'none';
+  document.getElementById('predictText').textContent = '';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('scorePlaceholder').style.display = 'block';
+
+  if (myChart) { myChart.destroy(); myChart = null; }
+  document.getElementById('chartWrap').style.display = 'none';
+  document.getElementById('chartPlaceholder').style.display = 'block';
+
+  lastScore = 0; lastDecision = ''; lastSuggestions = [];
+  addBotMessage('Form has been reset ♻️ Fill in your habits and calculate again!');
+}
+
+// ── CHAT TOGGLE ───────────────────────────────
+function toggleChat() {
+  document.getElementById('chatPanel').classList.toggle('open');
+}
+
+// ── ADD MESSAGES ──────────────────────────────
+function addUserMessage(text) {
+  const box = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = 'msg user';
+  d.innerHTML = `<div class="msg-bubble">${text}</div>`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function addBotMessage(html) {
+  const box = document.getElementById('chatMessages');
+  // typing animation
+  const t = document.createElement('div');
+  t.className = 'msg bot';
+  t.innerHTML = `<div class="msg-av">🌿</div>
+    <div class="typing-indicator">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>`;
+  box.appendChild(t);
+  box.scrollTop = box.scrollHeight;
+
+  setTimeout(() => {
+    t.remove();
+    const d = document.createElement('div');
+    d.className = 'msg bot';
+    d.innerHTML = `<div class="msg-av">🌿</div><div class="msg-bubble">${html}</div>`;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+  }, 750);
+}
+
+// ── QUICK BUTTONS ─────────────────────────────
+function quickChat(type) {
+  if (!lastScore) {
+    addBotMessage('Please fill in the form and click <strong>Calculate</strong> first! 📊');
+    return;
+  }
+
+  if (type === 'score') {
+    addUserMessage('What is my score?');
+    addBotMessage(`Your sustainability score is <strong>${lastScore}%</strong> 🎯<br>Grade: <strong>${getGrade()}</strong> — ${getGradeText()}`);
+
+  } else if (type === 'suggestions') {
+    addUserMessage('Show me the suggestions list');
+    const html = lastSuggestions.map((s, i) =>
+      `<li><span class="tag">${i+1}</span>${s}</li>`).join('');
+    addBotMessage(`💡 <strong>Your Personalised Suggestions:</strong><ol>${html}</ol>`);
+
+  } else if (type === 'priority') {
+    addUserMessage('What are my top 3 priority actions?');
+    const html = lastSuggestions.slice(0, 3).map((s, i) =>
+      `<li><span class="tag">${i+1}</span>${s}</li>`).join('');
+    addBotMessage(`🎯 <strong>Top 3 Priority Actions:</strong><ol>${html}</ol>`);
+
+  } else if (type === 'decision') {
+    addUserMessage('What is my decision?');
+    addBotMessage(`🔍 <strong>Decision:</strong><br>${lastDecision}`);
+
+  } else if (type === 'predict') {
+    addUserMessage('What is my future prediction?');
+    const improved = Math.min(lastScore + 20, 100);
+    addBotMessage(`📈 <strong>Future Prediction:</strong><br>Follow the suggestions and your score can reach <strong>${improved}%</strong>!`);
+  }
+}
+
+// ── TYPED MESSAGE HANDLER ─────────────────────
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  addUserMessage(msg);
+  input.value = '';
+
+  const m = msg.toLowerCase();
+
+  if (!lastScore) {
+    addBotMessage('Please calculate your score first by filling the form! 📊');
+    return;
+  }
+
+  if (m.includes('suggest') || m.includes('tip') || m.includes('list') || m.includes('all improvement')) {
+    const html = lastSuggestions.map((s,i) => `<li><span class="tag">${i+1}</span>${s}</li>`).join('');
+    addBotMessage(`💡 <strong>Your Personalised Suggestions:</strong><ol>${html}</ol>`);
+
+  } else if (m.includes('priority') || m.includes('top 3') || m.includes('top three') || m.includes('action') || m.includes('first') || m.includes('important')) {
+    const html = lastSuggestions.slice(0,3).map((s,i) => `<li><span class="tag">${i+1}</span>${s}</li>`).join('');
+    addBotMessage(`🎯 <strong>Top 3 Priority Actions:</strong><ol>${html}</ol>`);
+
+  } else if (m.includes('score') || m.includes('percentage') || m.includes('result') || m.includes('mark')) {
+    addBotMessage(`Your sustainability score is <strong>${lastScore}%</strong> 🎯<br>Grade: <strong>${getGrade()}</strong> — ${getGradeText()}`);
+
+  } else if (m.includes('decision') || m.includes('weakest') || m.includes('worst') || m.includes('problem') || m.includes('focus')) {
+    addBotMessage(`🔍 <strong>Decision:</strong><br>${lastDecision}`);
+
+  } else if (m.includes('predict') || m.includes('future') || m.includes('reach') || m.includes('target') || m.includes('goal')) {
+    const improved = Math.min(lastScore + 20, 100);
+    addBotMessage(`📈 <strong>Future Prediction:</strong><br>Follow the suggestions and your score can reach <strong>${improved}%</strong>!`);
+
+  } else if (m.includes('grade') || m.includes('level') || m.includes('rating')) {
+    addBotMessage(`Your grade is <strong>${getGrade()}</strong> — ${getGradeText()}. Score: ${lastScore}%`);
+
+  } else if (m.includes('hi') || m.includes('hello') || m.includes('hey')) {
+    addBotMessage(`Hello! 👋 Ask me about your <em>suggestions</em>, <em>top 3 actions</em>, <em>score</em>, <em>decision</em>, or <em>prediction</em>!`);
+
+  } else if (m.includes('help') || m.includes('what can') || m.includes('option')) {
+    addBotMessage(`I can answer:<br>
+      • <strong>Suggestions</strong> — full personalised improvement list<br>
+      • <strong>Top 3 Actions</strong> — your highest priority habits to fix<br>
+      • <strong>Score</strong> — your sustainability percentage<br>
+      • <strong>Decision</strong> — your weakest area<br>
+      • <strong>Prediction</strong> — your future target score`);
+
+  } else {
+    addBotMessage(`I'm not sure about that 🌿 Try asking: <em>"show suggestions"</em>, <em>"top 3 actions"</em>, <em>"my score"</em>, or <em>"prediction"</em>.`);
+  }
+}
+
+// ── HELPERS ───────────────────────────────────
+function getGrade() {
+  if (lastScore >= 80) return 'A';
+  if (lastScore >= 60) return 'B';
+  if (lastScore >= 40) return 'C';
+  return 'D';
+}
+function getGradeText() {
+  if (lastScore >= 80) return 'Excellent 🌟';
+  if (lastScore >= 60) return 'Good 👍';
+  if (lastScore >= 40) return 'Moderate 🙂';
+  return 'Critical ⚠️';
+}
+
+// close on outside click
+document.addEventListener('click', e => {
+  const panel = document.getElementById('chatPanel');
+  const bubble = document.getElementById('chatBubble');
+  if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== bubble)
+    panel.classList.remove('open');
+});
+</script>
+</body>
+</html>
